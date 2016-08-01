@@ -1,0 +1,27 @@
+# Create database from PitchRx
+#Load packages/PitchRx db already created
+library(dplyr, warn.conflicts = FALSE)
+library('DBI')
+library('ggplot2')
+library('pitchRx')
+db <- src_sqlite('~/Desktop/pitchRx.sqlite3')
+
+#Scrape for Zobrist 2016 data
+atbat16 <- filter(tbl(db, 'atbat'), date >= '2016_04_05' & date <= '2016_07_31')
+explain(atbat16)
+Zobrist_B_16 <- filter(atbat16, batter_name == 'Ben Zobrist')
+pitches <- tbl(db, 'pitch')
+Zobrist16 <- inner_join(pitches, Zobrist_B_16, by = c('num', 'gameday_link'))
+Ben_Zobrist_16 <- collect(Zobrist16)
+
+#Add month column
+Ben_Zobrist_16$month <- substr(Ben_Zobrist_16$gameday_link, 10, 11)
+
+#Add column that groups all pitches into 4 seperate pitch type: Hard, Offspeed, Breaking, Other
+Zobrist_16_2 <- mutate(Ben_Zobrist_16, PT_Updated = ifelse(grepl("SI", pitch_type), "Hard", ifelse(grepl("FF", pitch_type), 
+"Hard", ifelse(grepl("FC", pitch_type), "Hard", ifelse(grepl("FT", pitch_type), "Hard", ifelse(grepl("SL", pitch_type), 
+"Breaking", ifelse(grepl("CU", pitch_type), "Breaking", ifelse(grepl("KC", pitch_type), 
+"Breaking", ifelse(grepl("KN", pitch_type), "Breaking", ifelse(grepl("EP", pitch_type), 
+"Breaking", ifelse(grepl("FS", pitch_type), "Offspeed", ifelse(grepl("CH", pitch_type), "Offspeed", "Other"))))))))))))
+
+#Filter by month to determine monthly pitch type breakdown
